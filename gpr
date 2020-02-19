@@ -1,0 +1,48 @@
+#!/bin/bash
+REPO_NAME=$(git config --get remote.origin.url | rev | cut -d '/' -f1 | rev | sed 's/\.git//g')
+PR_TITLE=$1
+BRANCH_MASTER=$(git config --get branch.master.merge)
+BRANCH_LOCAL=$(git rev-parse --abbrev-ref HEAD)
+PROJECT_KEY=$(git config --get remote.origin.url | rev | cut -d '/' -f2 | rev)
+
+if [ -z "$PR_TITLE" ];
+then
+  echo "Type a title for your PR"
+  echo 'Example: gpr "Updating library"'
+  exit 1
+fi
+
+
+PR_URL=$(curl -s -H "Authorization: Bearer $GPR_BITBUCKET_PERSONAL_ACCESS_TOKEN" https://$GPR_GIT_DOMAIN/rest/api/1.0/projects/AWSDM/repos/$REPO_NAME/pull-requests \
+    --request POST \
+    --header 'Content-Type: application/json' \
+    --data '{
+        "title": "'"$PR_TITLE"'",
+        "source": {
+            "branch": {
+                "name": "'"$BRANCH_LOCAL"'"
+            }
+        },
+        "fromRef": {
+            "id": "refs/heads/'"$BRANCH_LOCAL"'",
+            "repository": {
+                "slug": "'"$REPO_NAME"'",
+                "name": null,
+                "project": {
+                    "key": "'"$PROJECT_KEY"'"
+                }
+            }
+        },
+        "toRef": {
+            "id": "'"$BRANCH_MASTER"'",
+            "repository": {
+                "slug": "'"$REPO_NAME"'",
+                "name": null,
+                "project": {
+                    "key": "'"$PROJECT_KEY"'"
+                }
+            }
+        }
+    }' | jq '.links.self[]'.href | cut -d '"' -f2)
+
+echo "PR: $PR_URL"
